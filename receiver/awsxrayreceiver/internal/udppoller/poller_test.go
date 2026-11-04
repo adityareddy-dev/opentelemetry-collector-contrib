@@ -482,9 +482,12 @@ func logSetup() (*zap.Logger, *observer.ObservedLogs) {
 func assertReceiverTraces(t *testing.T, tt *componenttest.Telemetry, id component.ID, accepted, refused int64) {
 	var got metricdata.Metrics
 	var err error
+	// The poller records its span after handing off the segment, so wait for the count and not just the metric.
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		got, err = tt.GetMetric("otelcol_receiver_accepted_spans")
-		assert.NoError(c, err)
+		if assert.NoError(c, err) {
+			assert.Equal(c, accepted, got.Data.(metricdata.Sum[int64]).DataPoints[0].Value)
+		}
 	}, 5*time.Second, 100*time.Millisecond)
 	metricdatatest.AssertEqual(t,
 		metricdata.Metrics{
@@ -508,7 +511,9 @@ func assertReceiverTraces(t *testing.T, tt *componenttest.Telemetry, id componen
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		got, err = tt.GetMetric("otelcol_receiver_refused_spans")
-		assert.NoError(c, err)
+		if assert.NoError(c, err) {
+			assert.Equal(c, refused, got.Data.(metricdata.Sum[int64]).DataPoints[0].Value)
+		}
 	}, 5*time.Second, 100*time.Millisecond)
 	metricdatatest.AssertEqual(t,
 		metricdata.Metrics{
